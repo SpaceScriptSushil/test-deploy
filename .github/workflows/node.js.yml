@@ -1,4 +1,4 @@
-name: Node.js CI
+name: Deploy Next.js on EC2
 
 on:
   push:
@@ -24,8 +24,16 @@ jobs:
     - name: Install PM2
       run: npm install -g pm2
 
+    - name: Check memory before install
+      run: |
+        echo "Memory status before install:"
+        free -h
+        top -bn1 | head -n 20
+
     - name: Install dependencies
-      run: npm i
+      run: |
+        export NODE_OPTIONS=--max_old_space_size=512
+        npm ci
 
     - name: Build Next.js app
       run: npm run build
@@ -35,4 +43,4 @@ jobs:
         pm2 delete testmansi || true
         pm2 start npm --name "testmansi" -- start
         pm2 save
-        pm2 startup --silent
+        pm2 startup systemd -u $USER --hp $HOME
