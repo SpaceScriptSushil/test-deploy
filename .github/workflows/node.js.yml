@@ -1,0 +1,48 @@
+name: Deploy Next.js on EC2
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        node-version: [22.x]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install PM2
+      run: npm install -g pm2
+
+    - name: Check memory before install
+      run: |
+        echo "Memory status before install:"
+        free -h
+        top -bn1 | head -n 20
+
+    - name: Install dependencies
+      run: |
+        export NODE_OPTIONS=--max_old_space_size=512
+        npm ci
+
+    - name: Build Next.js app
+      run: npm run build
+
+    - name: Start Next.js app with PM2
+      run: |
+        pm2 delete testmansi || true
+        pm2 start npm --name "testmansi" -- start
+        pm2 save
+        sudo env PATH=$PATH:/home/ubuntu/.nvm/versions/node/v22.16.0/bin \
+          /home/ubuntu/.nvm/versions/node/v22.16.0/lib/node_modules/pm2/bin/pm2 \
+          startup systemd -u ubuntu --hp /home/ubuntu
